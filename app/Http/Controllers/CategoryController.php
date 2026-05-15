@@ -97,11 +97,33 @@ class CategoryController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        $query = $request->input('title');
-        $results = Category::where('title', 'like', "%$query%")->get();
+        $date = $request->input('date');
+
+        // بياخد كل الداتا ماعدا التاريخ
+        $allData = $request->except('date');
+        // بيجيب أول قيمة مبعوتة (اللي هي كلمة البحث)
+        $searchWord = reset($allData);
+
+        // لو الخانتين فاضيين رجع فاضي
+        if (empty($searchWord) && empty($date)) {
+            return response()->json([]);
+        }
+
+        $query = Category::query();
+
+        // البحث بالـ title (تأكد إن اسم العمود في جدول الـ categories هو title)
+        if (!empty($searchWord)) {
+            $query->where('title', 'LIKE', '%' . $searchWord . '%');
+        }
+
+        if (!empty($date)) {
+            $query->whereDate('created_at', $date);
+        }
+
+        $results = $query->get();
+
         return response()->json($results);
     }
-
 
     /**
      * Remove the specified resource from storage.
@@ -120,5 +142,20 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+    }
+
+    public function getProducts($id)
+    {
+        // بنجيب القسم، وجواه المنتجات، وجوه كل منتج الصور بتاعته
+        $category = Category::with('products.Images')->find($id);
+
+        if (!$category) {
+            return response()->json(['message' => 'Category not found'], 404);
+        }
+
+        return response()->json([
+            'category' => $category->title, // أو name حسب جدولك
+            'products' => $category->products
+        ]);
     }
 }

@@ -2,24 +2,38 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-
+use App\Models\User;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductImage;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        User::factory(1)->withToken()->create();
-        // Category::factory(50)->create();
-        // Product::factory(100)->create();
-        // ProductImage::factory(400)->create();
+        // 1. إنشاء المستخدم (لو مش موجود)
+        User::firstOrCreate(
+            ['email' => 'admin@gmail.com'],
+            [
+                'name' => 'admin',
+                'password' => bcrypt('123456'),
+                'role' => 1995
+            ]
+        );
+
+        // 2. إنشاء 10 أقسام أولاً
+        $categories = Category::factory(10)->create();
+
+        // 3. إنشاء منتجات مربوطة بالأقسام اللي لسه معمولة
+        Product::factory(50)->make()->each(function ($product) use ($categories) {
+            $product->category_id = $categories->random()->id;
+            $product->save();
+
+            // 4. إنشاء صور لكل منتج بالمرة
+            ProductImage::factory(3)->create([
+                'product_id' => $product->id
+            ]);
+        });
     }
 }

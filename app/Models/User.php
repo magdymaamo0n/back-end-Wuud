@@ -20,9 +20,11 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'role',
         'password',
         'google_id',
         'google_token',
+        'avatar'
 
     ];
 
@@ -43,5 +45,19 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'role' => 'string',
     ];
+
+    public function getAvatarAttribute($value)
+    {
+        if (!$value) {
+            return asset('images/user-icon.png');
+        }
+        return asset('storage/avatars/' . $value);
+    }
+
+    public function favorites()
+    {
+        return $this->belongsToMany(Product::class, 'favorites');
+    }
 }

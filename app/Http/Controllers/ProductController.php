@@ -17,12 +17,17 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $allProducts = Product::with('Images')->get();
-        $products = Product::with('Images')->where('status', '=', 'published')->paginate($request->input('limit', 10));
-        $finalResult = $request->input('limit') ? $products : $allProducts;
-        return $finalResult;
-    }
+        $query = Product::with(['Images', 'reviews'])
+            ->where('status', 'published');
 
+        if ($request->has('limit')) {
+            $result = $query->paginate($request->limit);
+        } else {
+            $result = $query->get();
+        }
+
+        return response()->json($result);
+    }
 
     public function getLastSaleProducts(Request $request)
     {
@@ -33,14 +38,24 @@ class ProductController extends Controller
 
     public function getLatest(Request $request)
     {
-        $products = Product::with('Images')->where('status', '=', 'published')->latest()->take(6)->get();
+        $products = Product::with('Images')->where('status', '=', 'published')->latest()->take(4)->get();
         return $products;
     }
 
     public function getTopRated(Request $request)
     {
-        $products = Product::with('Images')->where('status', '=', 'published')->where('rating', '=', '5')->latest()->take(10)->get();
-        return $products;
+        $products = Product::with('Images')
+            ->where('status', 'published')
+            // هنا بنقول له هات من 4 لحد 5
+            ->whereBetween('rating', [4, 5])
+            // أو ممكن تكتبها كدة: ->where('rating', '>=', 4)
+
+            ->orderBy('rating', 'desc') // عشان يجيب الـ 5 الأول وبعدين الـ 4.9 وهكذا
+            ->latest()
+            ->take(10)
+            ->get();
+
+        return response()->json($products);
     }
 
 
@@ -148,9 +163,38 @@ class ProductController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        $query = $request->input('title');
-        $results = Product::with('Images')->where('title', 'like', "%$query%")->get();
-        return response()->json($results);
+        $title = trim($request->input('title'));
+        $date = trim($request->input('date'));
+
+        // لو مفيش بحث، رجع فاضي
+        if (!$title && !$date) {
+            return response()->json([]);
+        }
+
+        $results = \App\Models\Product::query()
+            // 1. تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
+            ->with('images')
+            ->when($title, function ($query, $title) {
+                return $query->where('title', 'LIKE', '%' . $title . '%');
+            })
+            ->when($date, function ($query, $date) {
+                return $query->whereDate('created_at', $date);
+            })
+            ->latest()
+            ->get();
+
+        // 2. تجهيز البيانات عشان الصور تظهر بوضوح
+        $results->transform(function ($product) {
+            // لو عايز كل الصور في مصفوفة
+            $product->all_images = $product->images;
+
+            // لو الفرونت مستني صورة واحدة أساسية (زي الجدول)
+            $product->image = $product->images->first()?->image;
+
+            return $product;
+        });
+
+        return response()->json($results, 200, [], JSON_UNESCAPED_UNICODE);
     }
 
 
