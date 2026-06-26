@@ -4,15 +4,20 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\TranslateAttributes;
 
 class Order extends Model
 {
+    use TranslateAttributes;
     use HasFactory;
 
     protected $fillable = [
         'customer_name',
         'product_names',
         'total_price',
+        'phone',
+        'country',
+        'city',
         'status'
     ];
 

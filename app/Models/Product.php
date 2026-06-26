@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use App\Traits\TranslateAttributes;
 
 class Product extends Model
 {
+    use TranslateAttributes;
     use HasFactory;
     protected $fillable = ['category', 'title', 'description', 'About', 'price', 'discount', 'stock'];
 
@@ -21,7 +22,6 @@ class Product extends Model
     {
         return $this->hasMany(ProductImage::class);
     }
-
 
     public function Cart()
     {

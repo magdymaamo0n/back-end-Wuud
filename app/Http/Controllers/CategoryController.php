@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
+use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -144,18 +145,109 @@ class CategoryController extends Controller
         $category->delete();
     }
 
-    public function getProducts($id)
+    public function getProducts(Request $request, $id)
     {
-        // بنجيب القسم، وجواه المنتجات، وجوه كل منتج الصور بتاعته
-        $category = Category::with('products.Images')->find($id);
+        $category = Category::find($id);
 
         if (!$category) {
-            return response()->json(['message' => 'Category not found'], 404);
+            return response()->json(['status' => 'error', 'message' => 'Category not found'], 404);
         }
 
+        $limit = $request->query('limit', 10);
+        $page = $request->query('page', 1);
+        $offset = ($page - 1) * $limit;
+
+        $sort = strtolower($request->query('sort', 'newest'));
+
+        $foreignKey = $category->products()->getForeignKeyName();
+        $productsQuery = Product::where($foreignKey, $id)->with('Images');
+
+        if ($sort === 'price-min' || $sort === 'price-max') {
+            $sortDirection = $sort === 'price-min' ? 'asc' : 'desc';
+
+            // 🎯 الحسبة السحرية: تنظيف السعر والخصم، وطرح الخصم لو موجود، ثم الترتيب بناءً على الناتج
+            $productsQuery->orderByRaw("
+            (
+                CAST(REGEXP_REPLACE(price, '[^0-9.]', '') AS DECIMAL(10,2)) -
+                COALESCE(CAST(REGEXP_REPLACE(discount, '[^0-9.]', '') AS DECIMAL(10,2)), 0)
+            ) " . $sortDirection);
+        } else {
+            $productsQuery->orderBy('created_at', 'desc');
+        }
+
+        $totalProductsCount = $productsQuery->count();
+
+        $products = $productsQuery->skip((int)$offset)
+            ->take((int)$limit)
+            ->get();
+
+        $products->each(function ($product) {
+            if ($product->Images && $product->Images->isNotEmpty()) {
+                $product->setRelation('Images', collect([$product->Images->first()]));
+            }
+        });
+
         return response()->json([
-            'category' => $category->title, // أو name حسب جدولك
-            'products' => $category->products
-        ]);
+            'status' => 'success',
+            'category_title' => $category->title,
+            'total_products' => $totalProductsCount,
+            'current_page' => (int)$page,
+            'products' => $products
+        ], 200);
+    }
+
+    public function searchProductsInCategory(Request $request, $id)
+    {
+        $category = Category::find($id);
+
+        if (!$category) {
+            return response()->json(['status' => 'error', 'message' => 'Category not found'], 404);
+        }
+
+        $limit = $request->query('limit', 10);
+        $page = $request->query('page', 1);
+        $offset = ($page - 1) * $limit;
+
+        $sort = strtolower($request->query('sort', 'newest'));
+        $search = $request->query('search');
+
+        $foreignKey = $category->products()->getForeignKeyName();
+        $productsQuery = Product::where($foreignKey, $id)->with('Images');
+
+        if (!empty($search)) {
+            $productsQuery->where('title', 'LIKE', '%' . $search . '%');
+        }
+
+        if ($sort === 'price-min' || $sort === 'price-max') {
+            $sortDirection = $sort === 'price-min' ? 'asc' : 'desc';
+
+            $productsQuery->orderByRaw("
+            (
+                CAST(REGEXP_REPLACE(price, '[^0-9.]', '') AS DECIMAL(10,2)) -
+                COALESCE(CAST(REGEXP_REPLACE(discount, '[^0-9.]', '') AS DECIMAL(10,2)), 0)
+            ) " . $sortDirection);
+        } else {
+            $productsQuery->orderBy('created_at', 'desc');
+        }
+
+        $totalProductsCount = $productsQuery->count();
+
+        $products = $productsQuery->skip((int)$offset)
+            ->take((int)$limit)
+            ->get();
+
+        $products->each(function ($product) {
+            if ($product->Images && $product->Images->isNotEmpty()) {
+                $product->setRelation('Images', collect([$product->Images->first()]));
+            }
+        });
+
+        return response()->json([
+            'status' => 'success',
+            'category_title' => $category->title,
+            'total_products' => $totalProductsCount,
+            'current_page' => (int)$page,
+            'products' => $products
+        ], 200);
     }
 }

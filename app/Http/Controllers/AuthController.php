@@ -20,9 +20,13 @@ class AuthController extends Controller
     {
         $request->validated();
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'first_name' => $request->first_name,
+            'last_name'  => $request->last_name,
+            'email'      => $request->email,
+            'phone'      => $request->phone,
+            'country'    => $request->country,
+            'city'       => $request->city,
+            'password'   => Hash::make($request->password),
         ]);
         $token = $user->createToken('token')->accessToken;
         $refreshToken = $user->createToken('authTokenRefresh')->accessToken;

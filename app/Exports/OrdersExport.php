@@ -6,21 +6,15 @@ use App\Models\Order;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithMapping; // عشان نتحكم في شكل التاريخ
-use Maatwebsite\Excel\Concerns\WithStyles;  // عشان التوسيط والشياكة
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
 class OrdersExport implements FromCollection, WithHeadings, ShouldAutoSize, WithMapping, WithStyles
 {
-
-    public function query()
-{
-    // هات فقط الطلبات اللي الحالة بتاعتها 'approved'
-    // تأكد أن كلمة 'approved' مطابقة لما هو مخزن في قاعدة بياناتك
-    return Order::query()->where('status', 'approved');
-}
-
     public function collection()
     {
         return Order::where('status', 'confirmed')->get();
@@ -34,12 +28,15 @@ class OrdersExport implements FromCollection, WithHeadings, ShouldAutoSize, With
             $order->product_names,
             $order->total_price . ' EGP',
             $order->created_at->format('Y-m-d H:i'), // بيخلي التاريخ (سنة-شهر-يوم ساعة:دقيقة)
+            '+' . $order->phone . ' ',
+            $order->country,
+            $order->city
         ];
     }
 
     public function headings(): array
     {
-        return ["اسم العميل", "المنتجات", "الإجمالي", "تاريخ الطلب"];
+        return ["Customer name", "Products", "Total", "Order date", "Phone Numer", "Customer country", "Customer City"];
     }
 
     // 2. التوسيط وتظبط شكل المربعات

@@ -39,7 +39,7 @@ class ReviewController extends Controller
     public function getProductReviews($product_id)
     {
         $reviews = Review::with(['user' => function ($query) {
-            $query->select('id', 'name', 'avatar'); // بنحدد الأعمدة اللي عايزينها بس
+            $query->select('id', 'first_name', 'last_name', 'avatar'); // بنحدد الأعمدة اللي عايزينها بس
         }])
             ->where('product_id', $product_id)
             ->latest()
@@ -52,7 +52,7 @@ class ReviewController extends Controller
     public function getLatestReviews()
     {
         $reviews = Review::with(['user' => function ($query) {
-            $query->select('id', 'name', 'avatar');
+            $query->select('id', 'first_name', 'last_name', 'avatar');
         }])
             ->orderByDesc('created_at')
             ->take(5)

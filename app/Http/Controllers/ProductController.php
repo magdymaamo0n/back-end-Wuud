@@ -31,7 +31,7 @@ class ProductController extends Controller
 
     public function getLastSaleProducts(Request $request)
     {
-        $products = Product::with('Images')->where('status', '=', 'published')->where('discount', '>', '0')->latest()->take(5)->get();
+        $products = Product::with('Images')->where('status', '=', 'published')->where('discount', '>', '0')->latest()->take(10)->get();
         return $products;
     }
 

@@ -15,6 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('customer_name');
             $table->string('product_names');
+            $table->string('phone');
+            $table->string('country');
+            $table->string('city');
             $table->decimal('total_price', 10, 2);
             $table->string('status')->default('pending');
             $table->timestamps();

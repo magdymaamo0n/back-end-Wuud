@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text('description');
             $table->string('rating')->default(0);
             $table->string('ratings_number')->default(0);
-            $table->string('price');
+            $table->decimal('price', 10, 2)->default(0.00);
             $table->string('discount')->default(0);
             $table->text('About');
             $table->string('status')->default('draft');

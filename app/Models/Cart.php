@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\TranslateAttributes;
 
 class Cart extends Model
 {
+    use TranslateAttributes;
     use HasFactory;
 
     protected $fillable = ['count', 'product_id', 'user_id'];

@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class socialAuthController extends Controller
@@ -14,43 +12,53 @@ class socialAuthController extends Controller
     {
         return Socialite::driver('google')->stateless()->redirect();
     }
-    public function handleCallback(Response $request)
+
+    public function handleCallback(\Illuminate\Http\Request $request)
     {
-        $google_user = Socialite::driver('google')->stateless()->user();
-        // Check if the user already exists in the database
-        $existingUser = User::where('email', $google_user->email)->first();
-        if ($existingUser) {
-            // If the user already exists, generate an access token for the user
-            $token = $existingUser->createToken('Token Name')->accessToken;
-            return response()->json([
-                'user' => $existingUser,
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ]);
-        } else {
-            $user = User::where('google_id', $google_user->id)->first();
+        try {
+            $google_user = Socialite::driver('google')->stateless()->user();
+
+            $user = User::where('email', $google_user->email)->first();
+
+            $nameParts = explode(' ', $google_user->getName(), 2);
+
+            $firstName = $nameParts[0] ?? 'Google'; // بياخد الاسم الأول (Magdy)
+            $lastName = $nameParts[1] ?? 'User';   // بياخد باقي الاسم (Elbaz)
+
+            $data = [
+                'google_id'    => $google_user->id,
+                'first_name'   => $firstName,
+                'last_name'    => $lastName,
+                'google_token' => substr($google_user->token, 0, 200),
+                'password'     => $user ? $user->password : bcrypt(Str::random(24)),
+            ];
+
+            // 🎯 التريكة السحرية: حقل الـ role يتحدد "فقط" لو المستخدم لسه جديد ومش موجود في السيستم
             if (!$user) {
-                $user = User::Create([
-                    'google_id' => $google_user->id,
-                    'name' => $google_user->name,
-                    'email' => $google_user->email,
-                    'google_token' => $google_user->token,
-                ]);
-                // Generate an access token for the new user
-                $token = $user->createToken('access_token')->accessToken;
-                return response()->json([
-                    'user' => $user,
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                ]);
-            } else {
-                $token = $user->createToken('access_token')->accessToken;
-                return response()->json([
-                    'user' => $user,
-                    'access_token' => $token,
-                    'token_type' => 'Bearer',
-                ]);
+                $data['role'] = 'user';
             }
+
+            // 3️⃣ الإنشاء أو التحديث الآمن
+            $user = User::updateOrCreate(
+                ['email' => $google_user->email],
+                $data
+            );
+
+            // 4️⃣ توليد التوكن
+            $token = $user->createToken('access_token')->accessToken;
+
+            return response()->json([
+                'status'       => 'success',
+                'user'         => $user,
+                'access_token' => $token,
+                'token_type'   => 'Bearer',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Google authentication failed',
+                'error'   => $e->getMessage()
+            ], 500);
         }
     }
 }

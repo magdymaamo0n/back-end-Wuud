@@ -97,15 +97,29 @@ class OrderController extends Controller
     public function store(Request $request)
     {
         try {
+            // 1. عمل Validation للتأكد إن البيانات دي مبعوتة ومظبوطة
+            $request->validate([
+                'customer_name' => 'required|string|max:255',
+                'total_price'   => 'required|numeric',
+                'phone'         => 'required|string|max:20', // إجباري للأوردر
+                'country'       => 'required|string|max:100', // إجباري للأوردر
+                'city'          => 'required|string|max:100', // إجباري للأوردر
+                'items'         => 'required|array',
+            ]);
+
             $order = new Order();
             $order->customer_name = $request->customer_name;
             $order->total_price = $request->total_price;
             $order->status = 'pending';
             $order->user_id = auth()->id() ?? 1;
 
-            // الخطوة المهمة: ندي قيمة فاضية مؤقتاً عشان الـ Validation بتاع الداتابيز
-            $order->product_names = "";
+            // 🔥 الخطوة الجديدة: حفظ بيانات الشحن والتواصل جوه الأوردر
+            $order->phone = $request->phone;
+            $order->country = $request->country;
+            $order->city = $request->city;
 
+            // قيمة فاضية مؤقتاً للـ Validation
+            $order->product_names = "";
             $order->save();
 
             $allNames = "";
@@ -114,7 +128,7 @@ class OrderController extends Controller
                 if ($product) {
                     $allNames .= $product->title . " (x" . $item['count'] . "), ";
 
-                    // ربط المنتجات
+                    // ربط المنتجات في الـ Pivot Table
                     $order->products()->attach($product->id, ['quantity' => $item['count']]);
 
                     // تنقيص المخزن
@@ -122,16 +136,17 @@ class OrderController extends Controller
                 }
             }
 
-            // تحديث الأوردر بالأسامي الحقيقية بعد ما جمعناها
+            // تحديث الأوردر بالأسامي الحقيقية
             $order->update([
                 'product_names' => rtrim($allNames, ", ")
             ]);
 
-            return response()->json(['success' => true]);
+            return response()->json(['success' => true, 'order_id' => $order->id]);
         } catch (\Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
     public function getDashboardStats()
     {
         try {
@@ -234,7 +249,7 @@ class OrderController extends Controller
                 'status' => $order->status,
                 'total_price' => $order->total_price,
                 'product_names' => $order->product_names,
-                'customer_name' => $order->user ? $order->user->name : 'عميل غير معروف',
+                'customer_name' => $order->user ? $order->user->first_name . " " . $order->user->last_name : 'عميل غير معروف',
                 'image' => $imagePath, // دي اللي الـ Front بينادي عليها
                 'created_at' => $order->created_at,
             ];

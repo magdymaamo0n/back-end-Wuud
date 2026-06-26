@@ -12,6 +12,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\ShopController;
 
 use Illuminate\Support\Facades\Route;
 use Maatwebsite\Excel\Facades\Excel;
@@ -28,8 +29,6 @@ use App\Exports\OrdersExport;
 |
 */
 
-
-
 // Public Routes
 Route::controller(AuthController::class)->group(function () {
     Route::post('/register', 'register');
@@ -42,6 +41,7 @@ Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/category/{id}', [CategoryController::class, 'show']);
 Route::post('/search-category', [CategoryController::class, 'search']);
 Route::get('/category/{id}/products', [CategoryController::class, 'getProducts']);
+Route::get('/category/{id}/products-search', [CategoryController::class, 'searchProductsInCategory']);
 
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/product/{id}', [ProductController::class, 'show']);
@@ -50,7 +50,8 @@ Route::get('/latest', [ProductController::class, 'getLatest']);
 Route::get('/top-rated', [ProductController::class, 'getTopRated']);
 
 Route::post('/cart/check', [CartController::class, 'check']);
-
+Route::get('/shop', [ShopController::class, 'getHomeCategories']);
+Route::get('/shop-search', [ShopController::class, 'search']);
 
 Route::get('/login-google', [socialAuthController::class, 'redirectToProvider']);
 Route::get('/auth/google/callback', [socialAuthController::class, 'handleCallback']);
@@ -67,7 +68,9 @@ Route::get('/latest-reviews', [ReviewController::class, 'getLatestReviews']);
 Route::middleware('auth:api')->group(function () {
     // User
     Route::get('/user', [UsersContoller::class, 'authUser']);
-    Route::post('/user/profile/edit', [UsersContoller::class, 'editProfile']);
+    Route::post('/user/update-avatar', [UsersContoller::class, 'updateAvatar']);
+    Route::put('/user/update-profile', [UsersContoller::class, 'updateProfile']);
+    Route::put('/user/update-location', [UsersContoller::class, 'updateLocation']);
     // Stats
     Route::get('/dashboard/stats', [OrderController::class, 'getDashboardStats']);
     Route::post('/checkout', [OrderController::class, 'store']);
