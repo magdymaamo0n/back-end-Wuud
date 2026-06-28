@@ -124,11 +124,9 @@ class UsersContoller extends Controller
         $user->save();
 
         // 3. بناء رابط الـ URL النهائي بناءً على نوع الصورة المتخزنة
-        if (str_starts_with($user->avatar, 'images/')) {
-            // لو كانت صورة جاهزة: بنشاور مباشرة على فولدر public/images
-            $avatarUrl = url($user->avatar);
+        if (file_exists(public_path('images/' . $user->avatar))) {
+            $avatarUrl = url('images/' . $user->avatar);
         } else {
-            // لو صورة مرفوعة: بنشاور على الـ storage link
             $avatarUrl = url(Storage::url('avatars/' . $user->avatar));
         }
 
