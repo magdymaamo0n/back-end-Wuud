@@ -1,33 +1,42 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.4-fpm
 
-# تثبيت الإضافات والمكتبات المطلوبة للـ Laravel
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
+RUN apt-get update && apt-get install -y \
+    git \
     curl \
     libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libonig-dev \
     libxml2-dev \
+    libzip-dev \
+    libpq-dev \
     zip \
     unzip \
-    git \
-    oniguruma-dev
+    nginx \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 
-# تثبيت Composer
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /var/www/html
+
 COPY . .
 
-# تثبيت مكتبات الباكيند بدون الـ dev dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+RUN composer install --optimize-autoloader --no-dev --no-interaction
 
-# تضبيط صلاحيات الفولدرات المهمة في لارافل
-RUN chown -R www-data:www-data /app/storage /app/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# إعداد بورت السيرفر
-EXPOSE 80
-
-# أمر التشغيل المباشر للـ لارافل
-CMD php artisan serve --host=0.0.0.0 --port=${PORT:-80}
+COPY docker/nginx.conf
