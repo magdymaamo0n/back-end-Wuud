@@ -23,3 +23,4 @@ nginx -g "daemon off;"
 php artisan passport:install --force
 php artisan storage:link --force
 php artisan passport:keys --force
+chmod 600 storage/oauth-*.key
