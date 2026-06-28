@@ -134,7 +134,7 @@ class UsersContoller extends Controller
 
         return response()->json([
             'message' => 'Avatar updated successfully!',
-            'avatar_url' => $avatarUrl
+            'avatar' => $avatarUrl
         ]);
     }
 
