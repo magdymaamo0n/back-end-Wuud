@@ -19,14 +19,8 @@ php artisan migrate --force || true
 
 # Start PHP-FPM in the background, then nginx in the foreground
 
-echo "Setting up storage link..."
-rm -rf public/storage
 php artisan storage:link --force
-
-# 2. توليد مفاتيح الباسبورت وتظبيط صلاحياتها أوتوماتيك
-echo "Setting up Passport keys..."
 php artisan passport:keys --force
-chmod 600 storage/oauth-*.key
 
 php-fpm -D
 nginx -g "daemon off;"
