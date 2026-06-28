@@ -20,5 +20,6 @@ php artisan migrate --force || true
 # Start PHP-FPM in the background, then nginx in the foreground
 php-fpm -D
 nginx -g "daemon off;"
-php artisan storage:link
-php artisan passport:keys
+php artisan passport:install --force
+php artisan storage:link --force
+php artisan passport:keys --force
