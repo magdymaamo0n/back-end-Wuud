@@ -94,7 +94,7 @@ class UsersContoller extends Controller
             $file = $request->file('avatar');
             $fileName = time() . '.' . $file->getClientOriginalExtension();
 
-            $file->storeAs('public/avatars', $fileName);
+            $file->storeAs('public/images', $fileName);
             $user->avatar = $fileName;
         }
         // 2. لو اختار صورة جاهزة (الاسم الصافي اللي جاي من عندك: avatar2.png)
