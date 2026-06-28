@@ -89,32 +89,48 @@ class UsersContoller extends Controller
 
         $user = Auth::user();
 
-        // 1. لو المستخدم رفع ملف حقيقي من جهازه
-        if ($request->file('avatar')) {
+        // 1. لو المستخدم رفع ملف حقيقي وجديد من جهازه (بيتخزن في الـ storage)
+        if ($request->hasFile('avatar')) {
             $file = $request->file('avatar');
             $fileName = time() . '.' . $file->getClientOriginalExtension();
 
-            $file->storeAs('public/images', $fileName);
+            // هيتخزن جوة storage/app/public/avatars
+            $file->storeAs('public/avatars', $fileName);
+
+            // بنحفظ اسم الملف فقط
             $user->avatar = $fileName;
         }
-        // 2. لو اختار صورة جاهزة (الاسم الصافي اللي جاي من عندك: avatar2.png)
+        // 2. لو اختار صورة جاهزة (عايزه يدور عليها ويشاور على public/images)
         else {
             $avatarInput = $request->avatar;
 
-            // لو جايلك الاسم الصافي علطول (زي avatar2.png) ومفهوش علامات اللينك
-            if (!str_contains($avatarInput, 'http') && !str_contains($avatarInput, '/')) {
-                $user->avatar = $avatarInput;
-            } else {
-                // لو جايلك مسار أو لينك بالصدفة، بنضفه كالأول
+            // تنظيف المدخلات لو مبعوت لينك كامل ونأخذ اسم الصورة فقط (مثل avatar2.png)
+            if (str_contains($avatarInput, 'http') || str_contains($avatarInput, '/')) {
                 $path = parse_url($avatarInput, PHP_URL_PATH);
-                $user->avatar = basename($path);
+                $avatarInput = basename($path);
+            }
+
+            // التأكد أولاً: هل الصورة الجاهزة دي موجودة فعلاً في public/images على السيرفر؟
+            if (file_exists(public_path('images/' . $avatarInput))) {
+                // بنخزن في قاعدة البيانات كلمة مميزة قبلها (مثل images/) عشان الـ API يعرف يفرق بينها وبين المرفوعة
+                $user->avatar = 'images/' . $avatarInput;
+            } else {
+                return response()->json([
+                    'message' => 'The selected default image does not exist on the server.'
+                ], 404);
             }
         }
 
         $user->save();
 
-        // توليد الرابط الصحيح والمباشر للمتصفح
-        $avatarUrl = url(Storage::url('avatars/' . $user->avatar));
+        // 3. بناء رابط الـ URL النهائي بناءً على نوع الصورة المتخزنة
+        if (str_starts_with($user->avatar, 'images/')) {
+            // لو كانت صورة جاهزة: بنشاور مباشرة على فولدر public/images
+            $avatarUrl = url($user->avatar);
+        } else {
+            // لو صورة مرفوعة: بنشاور على الـ storage link
+            $avatarUrl = url(Storage::url('avatars/' . $user->avatar));
+        }
 
         return response()->json([
             'message' => 'Avatar updated successfully!',
