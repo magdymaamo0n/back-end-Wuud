@@ -12,21 +12,25 @@ class TranslateSearchInput
      */
     public function handle($request, Closure $next)
     {
-        // تشيك لو الطلب جواه حقل بحث واللغة اللي جاي بيها عربي
-        if ($request->has('search') && $request->header('Accept-Language') === 'ar') {
+        // 1. جلب لغة الموقع من الـ Header وتحويلها لحروف صغيرة
+        $lang = strtolower($request->header('Accept-Language', ''));
+
+        // 2. التحقق من أن الكلمة موجودة في الطلب وأن اللغة تحتوي على 'ar'
+        if ($request->has('search') && str_contains($lang, 'ar')) {
+
+            // استخدمنا input() لجلب القيمة سواء كانت مبعوتة كـ Query string أو Form-Data/JSON
             $originalSearch = $request->input('search');
 
             if (!empty($originalSearch) && is_string($originalSearch)) {
                 try {
-                    // إعداد المترجم ليحول من أي لغة (أو العربي) إلى الإنجليزي 'en'
+                    // المترجم الذكي يحول تلقائياً من العربي إلى الإنجليزي 'en'
                     $tr = new GoogleTranslate('en');
-
                     $translatedSearch = $tr->translate($originalSearch);
 
-                    // استبدال كلمة البحث القديمة (العربي) بالمترجمة (الإنجليزي) جوه الـ request
+                    // دمج القيمة المترجمة داخل الـ Request ليعتمدها الباك إند بالكامل
                     $request->merge(['search' => $translatedSearch]);
                 } catch (\Exception $e) {
-                    // لو حصل أي مشكلة في الاتصال بمترجم جوجل، كمل عادي عشان الأبلكيشن ما يقفش
+                    // في حالة فشل الاتصال بجوجل كمل الطلب عادي بالكلمة الأصلية
                 }
             }
         }
