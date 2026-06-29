@@ -12,6 +12,11 @@ class TranslateSearchInput
      */
     public function handle($request, Closure $next)
     {
+        dd([
+            'all_inputs' => $request->all(),
+            'search_value' => $request->input('search'),
+            'accept_language_header' => $request->header('Accept-Language'),
+        ]);
         // 1. جلب لغة الموقع من الـ Header وتحويلها لحروف صغيرة
         $lang = strtolower($request->header('Accept-Language', ''));
 
