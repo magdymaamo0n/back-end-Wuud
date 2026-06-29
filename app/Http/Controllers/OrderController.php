@@ -279,6 +279,18 @@ class OrderController extends Controller
         $customerName = trim($request->input('name'));
         $date = $request->input('date');
 
+        $lang = strtolower($request->header('Accept-Language', ''));
+
+        if (!empty($customerName) && str_contains($lang, 'ar')) {
+            try {
+                // ترجمة اسم العميل فوراً من العربي للإنجليزي
+                $tr = new \Stichoza\GoogleTranslate\GoogleTranslate('en');
+                $customerName = $tr->translate($customerName);
+            } catch (\Exception $e) {
+                // لو حصل أي مشكلة في الاتصال بمترجم جوجل، يكمل بالاسم العربي عادي
+            }
+        }
+
         if (!$customerName && !$date) {
             return response()->json([]);
         }

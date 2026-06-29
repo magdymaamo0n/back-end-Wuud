@@ -166,15 +166,29 @@ class ProductController extends Controller
         $title = trim($request->input('title'));
         $date = trim($request->input('date'));
 
+        // 🎯 1. جلب اللغة من الـ Header ونشوف لو هي عربي عشان نترجم الـ title
+        $lang = strtolower($request->header('Accept-Language', ''));
+
+        if (!empty($title) && str_contains($lang, 'ar')) {
+            try {
+                // نترجم كلمة البحث فوراً من العربي للإنجليزي 'en'
+                $tr = new \Stichoza\GoogleTranslate\GoogleTranslate('en');
+                $title = $tr->translate($title);
+            } catch (\Exception $e) {
+                // لو حصل مشكلة في الاتصال بمترجم جوجل، هيكمل بالكلمة العربي عادي
+            }
+        }
+
         // لو مفيش بحث، رجع فاضي
         if (!$title && !$date) {
             return response()->json([]);
         }
 
         $results = \App\Models\Product::query()
-            // 1. تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
+            // تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
             ->with('images')
             ->when($title, function ($query, $title) {
+                // هنا هيستخدم الـ $title المترجم تلقائياً وبأمان 🎯
                 return $query->where('title', 'LIKE', '%' . $title . '%');
             })
             ->when($date, function ($query, $date) {
@@ -183,7 +197,7 @@ class ProductController extends Controller
             ->latest()
             ->get();
 
-        // 2. تجهيز البيانات عشان الصور تظهر بوضوح
+        // تجهيز البيانات عشان الصور تظهر بوضوح
         $results->transform(function ($product) {
             // لو عايز كل الصور في مصفوفة
             $product->all_images = $product->images;
