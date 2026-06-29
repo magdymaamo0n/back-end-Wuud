@@ -56,13 +56,13 @@ class User extends Authenticatable
     {
         if (!$value) {
             return asset('images/user-icon.png');
-        } else {
-            if (file_exists(public_path('images/' . $value))) {
-                return asset('images/' . $value);
-            } else {
-                return asset('storage/avatars/' . $value);
-            }
         }
+
+        if (str_starts_with($value, 'images/')) {
+            return asset($value);
+        }
+
+        return asset('storage/avatars/' . $value);
     }
 
     public function favorites()
