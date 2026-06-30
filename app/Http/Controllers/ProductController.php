@@ -163,45 +163,47 @@ class ProductController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        // 1. استقبال التاريخ صراحة وتحويل النص الفاضي إلى null
+        // 1. تنظيف التاريخ
         $date = $request->input('date');
         $date = (!empty($date) && trim($date) !== '') ? trim($date) : null;
 
-        // 2. استخراج كلمة البحث ديناميكياً وتنظيفها تماماً من أي نصوص فارغة
+        // 2. تنظيف الـ title
         $inputData = $request->except(['date']);
         $title = null;
-
         if (!empty($inputData)) {
             $firstValue = trim(reset($inputData));
-            // لو القيمة مش نص فاضي ومش مبعوتة كـ كلمة "null" كـ string
             if ($firstValue !== '' && strtolower($firstValue) !== 'null') {
                 $title = $firstValue;
             }
         }
 
-        // 🔴 اختبار سريع ومؤقت: فك التهميش عن السطر اللي تحت ده لو عايز تشوف القيم بعد التنظيف
-        // return response()->json(['clean_title' => $title, 'clean_date' => $date]);
-
-        // لو الاثنين null بعد التنظيف، رجع مصفوفة فاضية فوراً
+        // لو مفيش أي حاجة مبعوتة رجع فاضي
         if (is_null($title) && is_null($date)) {
             return response()->json([]);
         }
 
-        // 3. بناء الاستعلام النظيف
-        $results = \App\Models\Product::query()
-            ->with('images')
-            // يبحث بالـ title فقط لو كان فعلاً شايل قيمة
-            ->when(!is_null($title), function ($query) use ($title) {
-                return $query->where('title', 'LIKE', '%' . $title . '%');
-            })
-            // يبحث بالـ date فقط لو كان فعلاً شايل قيمة
-            ->when(!is_null($date), function ($query) use ($date) {
-                return $query->whereDate('created_at', $date);
-            })
-            ->latest()
-            ->get();
+        // 3. ابدأ الـ Query الأساسي
+        $query = \App\Models\Product::query()->with('images');
 
-        // 4. تجهيز البيانات للصور
+        // 4. لو في title بس
+        if (!is_null($title) && is_null($date)) {
+            $query->where('title', 'LIKE', '%' . $title . '%');
+        }
+
+        // 5. لو في تاريخ بس
+        if (is_null($title) && !is_null($date)) {
+            $query->whereDate('created_at', $date);
+        }
+
+        // 6. 🎯 لو بيبحث بالاثنين مع بعض (فصلناهم في شرط لوحده تماماً)
+        if (!is_null($title) && !is_null($date)) {
+            $query->where('title', 'LIKE', '%' . $title . '%')
+                ->whereDate('created_at', $date);
+        }
+
+        $results = $query->latest()->get();
+
+        // تجهيز الصور
         $results->transform(function ($product) {
             $product->all_images = $product->images;
             $product->image = $product->images->first()?->image;
