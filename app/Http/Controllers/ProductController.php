@@ -163,41 +163,45 @@ class ProductController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        // 1. استقبال التاريخ صراحة
-        $date = $request->input('date') ? trim($request->input('date')) : null;
+        // 1. استقبال التاريخ صراحة وتحويل النص الفاضي إلى null
+        $date = $request->input('date');
+        $date = (!empty($date) && trim($date) !== '') ? trim($date) : null;
 
-        // 2. استخراج كلمة البحث ديناميكياً وتنظيفها
+        // 2. استخراج كلمة البحث ديناميكياً وتنظيفها تماماً من أي نصوص فارغة
         $inputData = $request->except(['date']);
         $title = null;
 
         if (!empty($inputData)) {
             $firstValue = trim(reset($inputData));
-            // نتأكد إن القيمة مش عبارة عن نص فاضي ""
-            if ($firstValue !== '') {
+            // لو القيمة مش نص فاضي ومش مبعوتة كـ كلمة "null" كـ string
+            if ($firstValue !== '' && strtolower($firstValue) !== 'null') {
                 $title = $firstValue;
             }
         }
 
-        // لو الاثنين فاضيين، رجع مصفوفة فاضية فوراً
+        // 🔴 اختبار سريع ومؤقت: فك التهميش عن السطر اللي تحت ده لو عايز تشوف القيم بعد التنظيف
+        // return response()->json(['clean_title' => $title, 'clean_date' => $date]);
+
+        // لو الاثنين null بعد التنظيف، رجع مصفوفة فاضية فوراً
         if (is_null($title) && is_null($date)) {
             return response()->json([]);
         }
 
-        // 3. بناء الاستعلام
+        // 3. بناء الاستعلام النظيف
         $results = \App\Models\Product::query()
             ->with('images')
-            // يشتغل لو الـ title مبعوت وفي قيمة فعلاً
+            // يبحث بالـ title فقط لو كان فعلاً شايل قيمة
             ->when(!is_null($title), function ($query) use ($title) {
                 return $query->where('title', 'LIKE', '%' . $title . '%');
             })
-            // يشتغل لو الـ date مبعوت وفي قيمة فعلاً
+            // يبحث بالـ date فقط لو كان فعلاً شايل قيمة
             ->when(!is_null($date), function ($query) use ($date) {
                 return $query->whereDate('created_at', $date);
             })
             ->latest()
             ->get();
 
-        // تجهيز البيانات للصور
+        // 4. تجهيز البيانات للصور
         $results->transform(function ($product) {
             $product->all_images = $product->images;
             $product->image = $product->images->first()?->image;
