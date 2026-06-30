@@ -166,16 +166,19 @@ class ProductController extends Controller
         $title = trim($request->input('title'));
         $date = trim($request->input('date'));
 
-        // 🎯 1. جلب اللغة من الـ Header ونشوف لو هي عربي عشان نترجم الـ title
-        $lang = strtolower($request->header('Accept-Language', ''));
+        $searchTitles = [$title];
 
-        if (!empty($title) && str_contains($lang, 'ar')) {
+        if (!empty($title)) {
             try {
-                // نترجم كلمة البحث فوراً من العربي للإنجليزي 'en'
+                // نترجم كلمة البحث للإنجليزي ونضيفها للمصفوفة
                 $tr = new \Stichoza\GoogleTranslate\GoogleTranslate('en');
-                $title = $tr->translate($title);
+                $translatedTitle = $tr->translate($title);
+
+                if ($translatedTitle !== $title) {
+                    $searchTitles[] = $translatedTitle; // المصفوفة الآن فيها العربي والإنجليزي
+                }
             } catch (\Exception $e) {
-                // لو حصل مشكلة في الاتصال بمترجم جوجل، هيكمل بالكلمة العربي عادي
+                // لو جوجل فصل، هيكمل بالكلمة الأصلية عادي
             }
         }
 
@@ -188,8 +191,11 @@ class ProductController extends Controller
             // تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
             ->with('images')
             ->when($title, function ($query, $title) {
-                // هنا هيستخدم الـ $title المترجم تلقائياً وبأمان 🎯
-                return $query->where('title', 'LIKE', '%' . $title . '%');
+                return $query->where(function ($subQuery) use ($searchTitles) {
+                    foreach ($searchTitles as $text) {
+                        $subQuery->orWhere('title', 'LIKE', '%' . $text . '%');
+                    }
+                });
             })
             ->when($date, function ($query, $date) {
                 return $query->whereDate('created_at', $date);
