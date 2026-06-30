@@ -192,13 +192,13 @@ class ProductController extends Controller
 
         // 5. لو في تاريخ بس
         if (is_null($title) && !is_null($date)) {
-            $query->whereDate('created_at', $date);
+            $query->where('created_at', 'LIKE', '%' . $date . '%');
         }
 
         // 6. 🎯 لو بيبحث بالاثنين مع بعض (فصلناهم في شرط لوحده تماماً)
         if (!is_null($title) && !is_null($date)) {
             $query->where('title', 'LIKE', '%' . $title . '%')
-                ->whereDate('created_at', $date);
+                ->where('created_at', 'LIKE', '%' . $date . '%');
         }
 
         $results = $query->latest()->get();
