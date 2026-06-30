@@ -163,21 +163,25 @@ class ProductController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        $title = trim($request->input('title'));
+        // 🎯 بما إن الفرونت بيبعت الاسم ديناميكي، هنجيب كل البيانات ونشيل منها الـ date
+        // عشان يتبقالنا الكلمة اللي بيبحث بيها مهما كان اسمها (title أو name أو search)
+        $inputData = $request->except(['date']);
+
+        // أول عنصر متبقي هيكون هو كلمة البحث
+        $title = !empty($inputData) ? trim(reset($inputData)) : null;
         $date = trim($request->input('date'));
 
-        // لو مفيش بحث، رجع مصفوفة فاضية فوراً
+        // لو مفيش بحث خالص، رجع مصفوفة فاضية
         if (empty($title) && empty($date)) {
             return response()->json([]);
         }
 
         $results = \App\Models\Product::query()
             ->with('images')
-            // 🎯 التعديل هنا: استخدمنا use ($title) لضمان دخول المتغير جوه الـ Query
             ->when(!empty($title), function ($query) use ($title) {
+                // البحث في حقل الـ title (أو غيره لـ name لو جدولك بيستخدم name)
                 return $query->where('title', 'LIKE', '%' . $title . '%');
             })
-            // 🎯 والتعديل هنا أيضاً للـ date
             ->when(!empty($date), function ($query) use ($date) {
                 return $query->whereDate('created_at', $date);
             })
