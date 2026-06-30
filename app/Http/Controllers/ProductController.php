@@ -163,26 +163,35 @@ class ProductController extends Controller
     // Search On Users
     public function search(Request $request)
     {
-        // 🎯 بما إن الفرونت بيبعت الاسم ديناميكي، هنجيب كل البيانات ونشيل منها الـ date
-        // عشان يتبقالنا الكلمة اللي بيبحث بيها مهما كان اسمها (title أو name أو search)
+        // 1. استقبال التاريخ صراحة
+        $date = $request->input('date') ? trim($request->input('date')) : null;
+
+        // 2. استخراج كلمة البحث ديناميكياً وتنظيفها
         $inputData = $request->except(['date']);
+        $title = null;
 
-        // أول عنصر متبقي هيكون هو كلمة البحث
-        $title = !empty($inputData) ? trim(reset($inputData)) : null;
-        $date = trim($request->input('date'));
+        if (!empty($inputData)) {
+            $firstValue = trim(reset($inputData));
+            // نتأكد إن القيمة مش عبارة عن نص فاضي ""
+            if ($firstValue !== '') {
+                $title = $firstValue;
+            }
+        }
 
-        // لو مفيش بحث خالص، رجع مصفوفة فاضية
-        if (empty($title) && empty($date)) {
+        // لو الاثنين فاضيين، رجع مصفوفة فاضية فوراً
+        if (is_null($title) && is_null($date)) {
             return response()->json([]);
         }
 
+        // 3. بناء الاستعلام
         $results = \App\Models\Product::query()
             ->with('images')
-            ->when(!empty($title), function ($query) use ($title) {
-                // البحث في حقل الـ title (أو غيره لـ name لو جدولك بيستخدم name)
+            // يشتغل لو الـ title مبعوت وفي قيمة فعلاً
+            ->when(!is_null($title), function ($query) use ($title) {
                 return $query->where('title', 'LIKE', '%' . $title . '%');
             })
-            ->when(!empty($date), function ($query) use ($date) {
+            // يشتغل لو الـ date مبعوت وفي قيمة فعلاً
+            ->when(!is_null($date), function ($query) use ($date) {
                 return $query->whereDate('created_at', $date);
             })
             ->latest()
