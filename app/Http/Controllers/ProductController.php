@@ -165,30 +165,32 @@ class ProductController extends Controller
     {
         $title = trim($request->input('title'));
         $date = trim($request->input('date'));
-        // لو مفيش بحث، رجع فاضي
-        if (!$title && !$date) {
+
+        // لو مفيش بحث، رجع مصفوفة فاضية فوراً
+        if (empty($title) && empty($date)) {
             return response()->json([]);
         }
 
         $results = \App\Models\Product::query()
-            // 1. تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
             ->with('images')
-            ->when($title, function ($query, $title) {
+            // 🎯 التعديل هنا: استخدمنا use ($title) لضمان دخول المتغير جوه الـ Query
+            ->when(!empty($title), function ($query) use ($title) {
                 return $query->where('title', 'LIKE', '%' . $title . '%');
             })
-            ->when($date, function ($query, $date) {
+            // 🎯 والتعديل هنا أيضاً للـ date
+            ->when(!empty($date), function ($query) use ($date) {
                 return $query->whereDate('created_at', $date);
             })
             ->latest()
             ->get();
-        // 2. تجهيز البيانات عشان الصور تظهر بوضوح
+
+        // تجهيز البيانات للصور
         $results->transform(function ($product) {
-            // لو عايز كل الصور في مصفوفة
             $product->all_images = $product->images;
-            // لو الفرونت مستني صورة واحدة أساسية (زي الجدول)
             $product->image = $product->images->first()?->image;
             return $product;
         });
+
         return response()->json($results, 200, [], JSON_UNESCAPED_UNICODE);
     }
 
