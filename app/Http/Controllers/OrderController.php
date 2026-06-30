@@ -279,37 +279,16 @@ class OrderController extends Controller
         $customerName = trim($request->input('name'));
         $date = $request->input('date');
 
-        // مصفوفة هنحط فيها الأسماء اللي هنبحث بيها (الاسم الأصلي أولاً)
-        $searchNames = [$customerName];
-
-        if (!empty($customerName)) {
-            try {
-                // هنترجم الاسم للإنجليزي ونضيفه للمصفوفة
-                $tr = new \Stichoza\GoogleTranslate\GoogleTranslate('en');
-                $translatedName = $tr->translate($customerName);
-
-                if ($translatedName !== $customerName) {
-                    $searchNames[] = $translatedName; // هنا المصفوفة بقت شايلة الاسمين (عربي وإنجليزي)
-                }
-            } catch (\Exception $e) {
-                // لو جوجل فصل كمل بالاسم الأصلي
-            }
-        }
-
         if (!$customerName && !$date) {
             return response()->json([]);
         }
 
+        // 1. تحميل كل العلاقات اللازمة (اليوزر + المنتجات وصورها)
         $query = Order::query()->with(['user', 'products.images']);
 
         if ($customerName) {
-            $query->whereHas('user', function ($q) use ($searchNames) {
-                // 🎯 تعديل سحري: البحث عن أي اسم من الأسماء (العربي أو الإنجليزي المترجم)
-                $q->where(function ($subQuery) use ($searchNames) {
-                    foreach ($searchNames as $name) {
-                        $subQuery->orWhere('name', 'LIKE', '%' . $name . '%');
-                    }
-                });
+            $query->whereHas('user', function ($q) use ($customerName) {
+                $q->where('name', 'LIKE', '%' . $customerName . '%');
             });
         }
 
@@ -318,20 +297,23 @@ class OrderController extends Controller
         }
 
         $results = $query->latest()->get();
-
-        // الـ Transform (سيبها زي ما هي)
+        // 2. نفس الـ Transform اللي عملناه في الدالة التانية عشان الصور تظهر
         $results->transform(function ($order) {
             $firstProduct = $order->products->first();
-            $order->image = $firstProduct && $firstProduct->images->first() ? $firstProduct->images->first()->image : null;
+            $order->image = $firstProduct && $firstProduct->images->first()
+                ? $firstProduct->images->first()->image
+                : null;
             $order->customer_name = $order->user ? $order->user->name : 'عميل غير معروف';
+
+            // مسح العلاقات عشان الـ JSON يكون خفيف
             unset($order->products);
             unset($order->user);
+
             return $order;
         });
-
         return response()->json($results, 200, [], JSON_UNESCAPED_UNICODE);
     }
-    
+
     private function restoreStock($order)
     {
         // لارفيل دلوقتي هيروح لجدول order_product ويشوف كل منتج وكميته كام ويرجعها

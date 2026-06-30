@@ -165,56 +165,30 @@ class ProductController extends Controller
     {
         $title = trim($request->input('title'));
         $date = trim($request->input('date'));
-
-        // مصفوفة الكلمات (الكلمة الأصلية أولاً)
-        $searchTitles = [];
-        if (!empty($title)) {
-            $searchTitles[] = $title;
-        }
-
-        if (!empty($title)) {
-            try {
-                // ترجمة كلمة البحث للإنجليزي
-                $tr = new \Stichoza\GoogleTranslate\GoogleTranslate('en');
-                $translatedTitle = $tr->translate($title);
-
-                // لو الترجمة طلعت كلمة مختلفة، ضيفها للمصفوفة
-                if (strtolower($translatedTitle) !== strtolower($title)) {
-                    $searchTitles[] = $translatedTitle;
-                }
-            } catch (\Exception $e) {
-                // لو جوجل فصل كمل عادي
-            }
-        }
-
-        // لو مفيش بحث خالص، رجع فاضي
-        if (empty($searchTitles) && !$date) {
+        // لو مفيش بحث، رجع فاضي
+        if (!$title && !$date) {
             return response()->json([]);
         }
 
         $results = \App\Models\Product::query()
+            // 1. تحميل علاقة الصور (تأكد إن اسم العلاقة في الموديل images)
             ->with('images')
-            ->when(!empty($searchTitles), function ($query) use ($searchTitles) {
-                // 🎯 التعديل المضمون: تجميع شروط الـ orWhere جوه القوسين عشان ما تبوظش باقي الـ Query
-                return $query->where(function ($subQuery) use ($searchTitles) {
-                    foreach ($searchTitles as $text) {
-                        $subQuery->orWhere('title', 'LIKE', '%' . $text . '%');
-                    }
-                });
+            ->when($title, function ($query, $title) {
+                return $query->where('title', 'LIKE', '%' . $title . '%');
             })
             ->when($date, function ($query, $date) {
                 return $query->whereDate('created_at', $date);
             })
             ->latest()
             ->get();
-
-        // تجهيز البيانات للصور
+        // 2. تجهيز البيانات عشان الصور تظهر بوضوح
         $results->transform(function ($product) {
+            // لو عايز كل الصور في مصفوفة
             $product->all_images = $product->images;
+            // لو الفرونت مستني صورة واحدة أساسية (زي الجدول)
             $product->image = $product->images->first()?->image;
             return $product;
         });
-
         return response()->json($results, 200, [], JSON_UNESCAPED_UNICODE);
     }
 
